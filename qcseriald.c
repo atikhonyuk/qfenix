@@ -570,6 +570,12 @@ static int setup_bridges(void)
 							 &matched_pid);
 					CFRelease(pid_ref);
 				}
+				/* Dell DA20 USB-C adapter is not a modem. */
+				if (vid == 0x413c && matched_pid == 0xb080) {
+				    IOObjectRelease(candidate);
+				    matched_vendor = NULL;
+				    continue;
+				}
 				/* Skip EDL devices — they use
 				 * Sahara/Firehose, not serial. */
 				if (is_edl_device((uint16_t)vid,
