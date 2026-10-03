@@ -1,0 +1,39 @@
+name: Build patched QFenix for Intel macOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout patched source
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew install libusb libxml2 pkg-config help2man
+
+      - name: Build QFenix
+        run: |
+          make clean || true
+          make -j"$(sysctl -n hw.ncpu)"
+
+      - name: Verify binary
+        run: |
+          file qfenix
+          ./qfenix --help | head -40
+
+      - name: Package binary
+        run: |
+          mkdir artifact
+          cp qfenix artifact/qfenix-patched-intel
+          chmod +x artifact/qfenix-patched-intel
+          shasum -a 256 artifact/qfenix-patched-intel
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: qfenix-patched-intel
+          path: artifact/qfenix-patched-intel
