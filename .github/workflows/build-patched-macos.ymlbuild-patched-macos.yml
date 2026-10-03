@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: macos-15-intel
 
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "14.0"
+
     steps:
       - name: Checkout patched source
         uses: actions/checkout@v4
@@ -20,20 +23,34 @@ jobs:
           make clean || true
           make -j"$(sysctl -n hw.ncpu)"
 
-      - name: Verify binary
+      - name: Bundle dylibs
         run: |
-          file qfenix
-          ./qfenix --help | head -40
-
-      - name: Package binary
-        run: |
-          mkdir artifact
+          mkdir -p artifact/lib
           cp qfenix artifact/qfenix-patched-intel
-          chmod +x artifact/qfenix-patched-intel
-          shasum -a 256 artifact/qfenix-patched-intel
 
-      - name: Upload binary
+          cp "$(brew --prefix libusb)/lib/libusb-1.0.0.dylib" artifact/lib/
+          cp "$(brew --prefix libxml2)/lib/libxml2.2.dylib" artifact/lib/
+
+          install_name_tool -change \
+            "$(brew --prefix libusb)/lib/libusb-1.0.0.dylib" \
+            "@executable_path/lib/libusb-1.0.0.dylib" \
+            artifact/qfenix-patched-intel
+
+          install_name_tool -change \
+            "$(brew --prefix libxml2)/lib/libxml2.2.dylib" \
+            "@executable_path/lib/libxml2.2.dylib" \
+            artifact/qfenix-patched-intel
+
+          chmod +x artifact/qfenix-patched-intel
+
+      - name: Verify
+        run: |
+          file artifact/qfenix-patched-intel
+          otool -L artifact/qfenix-patched-intel
+          otool -l artifact/qfenix-patched-intel | grep -A3 LC_BUILD_VERSION || true
+
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: qfenix-patched-intel
-          path: artifact/qfenix-patched-intel
+          name: qfenix-patched-intel-sonoma
+          path: artifact/
